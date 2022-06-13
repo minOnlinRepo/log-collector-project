@@ -1,0 +1,16 @@
+{
+  "name": "log-collect-service",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "nodejs logCollect.js $1",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Min Hu",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.1",
+    "fs-reverse": "0.0.3"
+  }
+}
