@@ -33,7 +33,6 @@ app.post("/getLog", (req, res, next) => {
                 if (lineNum == lastEventNum) {
                     readStream.emit('end');
                 } else {
-                    console.log(lineNum + ', ' + line);
                     ++lineNum;
                     lines.push(line);
                 }
