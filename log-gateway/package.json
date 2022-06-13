@@ -4,7 +4,7 @@
   "description": "log gateway service",
   "main": "gateway.js",
   "scripts": {
-    "start": "nodejs gateway.js",
+    "start": "node gateway.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Min Hu",

@@ -4,7 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "nodejs logCollect.js $1",
+    "start": "node logCollect.js ",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Min Hu",

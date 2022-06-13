@@ -101,6 +101,7 @@
 
         createLogMessageTable(jsonResponse);
 
+        document.getElementById('server').textContent = payload.serverName;
         document.getElementById('logfile').textContent = payload.logFilePath;
         document.getElementById('lastEventNum').textContent = payload.lastEventNum;
         document.getElementById('searchText').textContent = payload.searchText;
