@@ -89,7 +89,22 @@
             searchText: document.getElementById('input-searchText').value
         };
 
-        const response = await fetch(`http://${window.location.host}/getLog`, {
+        let totalRows = 0;
+        await fetch(`http://${window.location.host}/getLog`, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        })
+            .then(function (response) {
+                return response.text();
+            }).then(function (data) {
+                totalRows = createLogMessageTable(data);
+            });
+
+        /*const response = await fetch(`http://${window.location.host}/getLog`, {
             method: 'POST',
             headers: {
                 'Accept': 'application/json',
@@ -97,15 +112,17 @@
             },
             body: JSON.stringify(payload)
         });
+       
         const jsonResponse = await response.json();
-
-        createLogMessageTable(jsonResponse);
+        createLogMessageTable(jsonResponse);*/
 
         document.getElementById('server').textContent = payload.serverName;
         document.getElementById('logfile').textContent = payload.logFilePath;
         document.getElementById('lastEventNum').textContent = payload.lastEventNum;
         document.getElementById('searchText').textContent = payload.searchText;
-
+        document.getElementById('retrievedLogNum').textContext = totalRows;
+        console.log("total #: " + totalRows);
+        
         cont.style.display = 'block';
         contEdit.style.display = 'none';
         loadingCont.style.display = 'none';
@@ -116,7 +133,9 @@
         myTable.setAttribute('id', 'logMessageTbl');
         let row, cell;
 
-        data.forEach((value, i) => {
+        let dataArray = data.split('\n');
+        dataArray.splice(-1);
+        dataArray.slice(0, 1000).forEach((value, i) => {
             row = myTable.insertRow();
 
             cell = row.insertCell();
@@ -127,6 +146,8 @@
         });
 
         document.getElementById('logMessagecontainer').appendChild(myTable);
+
+        return dataArray.length;
     }
 </script>
 
@@ -150,7 +171,7 @@
     <div class='container' id='container-edit'>
         <h1>Retrieve Log File</h1>
         <span>Server Name: </span><label for='input-server'></label><input type="text" id='input-server'
-        placeholder='<server name>:<port #>' value='localhost:3000' />
+            placeholder='<server name>:<port #>' value='localhost:3000' />
         <hr />
         <span>Log File Path: </span><label for='input-logfile'></label><input type="text" id='input-logfile'
             value='./test/alternatives.log' />
@@ -167,6 +188,9 @@
         <div id='loadingContainer'>
             <h1>Loading ...</h1>
         </div>
+        <span>Event Messages: </span>
+        <h3 id='retrievedLogNum'> </h3>
+        <hr />
     </div>
 </body>
 

@@ -23,8 +23,9 @@ app.post("/getLog", (req, res, next) => {
     console.log("--- /getLog request------" + fileName + ",  " + lastEventNum + ", " + searchText);
 
     const readStream = fsR(fileName, {});
+    // readStream.pipe(res);
+
     let lineNum = 0;
-    let lines = [];
     let sentOut = false;
     readStream.on('data', (line) => {
         if (line) { // have this check to make sure empty lines are not parsed
@@ -34,7 +35,7 @@ app.post("/getLog", (req, res, next) => {
                     readStream.emit('end');
                 } else {
                     ++lineNum;
-                    lines.push(line);
+                    res.write(line + '\n');
                 }
 
             }
@@ -47,7 +48,8 @@ app.post("/getLog", (req, res, next) => {
             else {
                 if (!sentOut) {
                     sentOut = true;
-                    res.status(200).send(lines);
+                    console.log('total event #' + lineNum);
+                    res.status(200).end();
                 }
             }
         });

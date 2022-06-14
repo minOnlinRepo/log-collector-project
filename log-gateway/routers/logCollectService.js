@@ -19,9 +19,14 @@ router.post('/getLog',/* isAuthorized,*/(req, res) => {
   const BASE_URL = 'http://' + serverName;
   const api = apiService(BASE_URL);
 
-  api.post(req.path, postLoad).then(resp => {
-    res.send(resp.data)
+  api.post(req.path, postLoad, { responseType: 'stream' }).then(response => {
+    const stream = response.data;
+    stream.on('data', (line) => {
+      res.write(line);
+    });
+    stream.on('end', () => {
+      res.status(200).end();
+    });
   });
 });
-
 module.exports = router;
