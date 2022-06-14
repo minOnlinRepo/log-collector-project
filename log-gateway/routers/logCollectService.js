@@ -1,6 +1,5 @@
 let express = require('express');
 let router = express.Router();
-let path = require('path');
 const apiService = require('./apiService');
 //const isAuthorized = require('../auth/requestAuthenticator');
 
@@ -9,15 +8,14 @@ const apiService = require('./apiService');
 router.post('/getLog',/* isAuthorized,*/(req, res) => {
   let playload = req.body;
   let serverName = playload.serverName;
-  const absoulteFilePath = path.resolve(path.normalize(playload.logFilePath));
 
-  if ( !absoulteFilePath.startsWith('/var/log/') ) {
+  if ( !playload.logFilePath.startsWith('/var/log/') ) {
     res.status(500).send('The specified file must be under the directory "/var/log/"');
     return;
   }
 
   const postLoad = {
-    filePath: absoulteFilePath,
+    filePath: playload.logFilePath,
     lastEventNum: playload.lastEventNum,
     searchText: playload.searchText
   };
@@ -32,8 +30,13 @@ router.post('/getLog',/* isAuthorized,*/(req, res) => {
     stream.on('data', (line) => {
       res.write(line);
     });
-    stream.on('end', () => {
-      res.status(200).end();
+    stream.on('end', (err) => {
+      if (err) {
+          res.write('Error: ' + err.toString());
+          res.status(500).end();
+      } else {
+        res.status(200).end();
+      }
     });
   });
 });

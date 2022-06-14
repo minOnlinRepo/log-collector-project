@@ -10,7 +10,6 @@
   "author": "Min Hu",
   "license": "ISC",
   "dependencies": {
-    "express": "^4.18.1",
-    "fs-reverse": "0.0.3"
+    "express": "^4.18.1"
   }
 }

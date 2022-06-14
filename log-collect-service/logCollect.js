@@ -3,28 +3,36 @@ console.log('myArgs: ', myArgs);
 let port = myArgs[0] || 3000;
 
 let express = require('express');
+let path = require('path');
+
 let app = express();
 
 app.listen(port, () => {
     console.log("Server running on port " + port);
 });
 
-let fsR = require('fs-reverse');
+let fsR = require('./utils/myFsReverse');
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
 app.post("/getLog", (req, res, next) => {
     let playload = req.body;
-    const fileName = playload.filePath;
+    const absoulteFilePath = path.resolve(path.normalize(playload.filePath));
+
+     if ( !absoulteFilePath.startsWith('/var/log/') ) {
+        res.write('The specified file must be under the directory "/var/log/"');
+        res.status(500).end();
+        return;
+     }
+
+    const fileName = absoulteFilePath;
     const lastEventNum = playload.lastEventNum;
     const searchText = playload.searchText;
 
     console.log("--- /getLog request------" + fileName + ",  " + lastEventNum + ", " + searchText);
 
     const readStream = fsR(fileName, {});
-    // readStream.pipe(res);
-
     let lineNum = 0;
     let sentOut = false;
     readStream.on('data', (line) => {
@@ -41,9 +49,10 @@ app.post("/getLog", (req, res, next) => {
             }
         }
     })
-        .on('end', function handleEndOfFileData(err) {
+        .on('end', (err) => {
             if (err) {
-                res.status(500).send({ "error reading from file": err.toString() });
+                res.write('error reading from file: ' + err.toString());
+                res.status(500).end();
             }
             else {
                 if (!sentOut) {
