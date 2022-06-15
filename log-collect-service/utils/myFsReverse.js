@@ -1,7 +1,8 @@
 /**
- * This fs stream api is to read a file in backwards. It is similar to fs-reverse except 
- * only using plain node fs without additional dependecies. This implementation uses fs-reverse
- * for the reference.
+ * This fs stream api is to read a file in backwards line by line, filter out lines by applying 
+ * keyword provided in the parameter options, and return the lines up to the maximum number of 
+ * lines defined in the parameter options. It is similar to fs-reverse but only using plain node 
+ * fs without additional dependecies. This implementation uses fs-reverse for the reference.
  * 
  * Copyright (c) 2022 Min Hu 
  * Copyright (c) 2011 Dominic Tarr 
@@ -25,15 +26,18 @@ module.exports = function (file, opts) {
 
   let matcher = opts && opts.matcher || '\n';
   let bufferSize = opts && opts.bufferSize || 1024 * 64;
+  let searchText = opts && opts.searchText;
+  let maxLineCount = opts && opts.maxLineCount;
 
   let stream = new Stream();
   stream.ended = false;
   stream.started = false;
   stream.readable = true;
   stream.reading = false;
+  stream.position = 0;
 
   let remaining = '';
-  let fd, position;
+  let fd, totalLines=0;
 
   stream.on('end', function () {
     stream.ended = true;
@@ -61,7 +65,7 @@ module.exports = function (file, opts) {
   }
 
   // open the file 
-  function openFile() {
+  var startStream = function openFile(next) {
     fs.open(file, 'r', 438, function (err, _fd) {
       if (err) {
         onError(err);
@@ -69,18 +73,18 @@ module.exports = function (file, opts) {
       }
       stream.started = true;
       fd = _fd;
-      getFileSize();
+      next.call();
     });
   }
 
   // state file to get total size
-  function getFileSize() {
+  var getFileSize = function getFileSize() {
     fs.stat(file, function (err, stat) {
       if (err) {
         onError(err);
         return;
       }
-      position = stat.size;
+      stream.position = stat.size;
       loopReadFile();
     })
   }
@@ -90,11 +94,10 @@ module.exports = function (file, opts) {
       return;
     }
 
-    let length = Math.min(bufferSize, position);
-    let buf = Buffer.alloc(length);
-    position = position - length;
+    let length = Math.min(bufferSize, stream.position);
+    stream.position = stream.position - length;
     stream.reading = true;
-    fs.read(fd, buf, 0, length, position, function (err) {
+    fs.read(fd, Buffer.alloc(length), 0, length, stream.position, function (err, bytesRead, receivedBuf) {
       stream.reading = false;
 
       if (err) {
@@ -102,18 +105,17 @@ module.exports = function (file, opts) {
         return;
       }
 
-      parseBufferData(buf);
-      if (position > 0) {
+      parseBufferData(receivedBuf);
+      if (stream.position > 0 ) {
         if (!stream.ended && !stream.paused) {
           process.nextTick(loopReadFile);
         }
         return;
       }
-      if (remaining) {
-        stream.emit('data', remaining);
+
+      if (sendoutLine(remaining)) {
+        stream.emit('end');
       }
-      stream.emit('end');
-      stream.destroy();
     });
   }
 
@@ -125,11 +127,27 @@ module.exports = function (file, opts) {
       if (stream.destroyed) {
         return;
       }
-      stream.emit('data', array.pop());
+     
+      if ( !sendoutLine(array.pop()) ) {
+        return;
+      }
     }
   }
 
-  process.nextTick(openFile);
+  function sendoutLine(lineData) {
+    if ( totalLines >= maxLineCount ) {
+      stream.ended = true;
+      stream.emit('end');
+      return false;
+    }
+    if ( lineData && (!searchText || lineData.includes(searchText))) {
+      totalLines++;
+      stream.emit('data', lineData);
+    }
+    return true;
+  }
+  
+  process.nextTick(startStream, getFileSize);
 
   return stream;
 }

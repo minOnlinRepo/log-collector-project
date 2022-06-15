@@ -34,7 +34,7 @@ app.post("/getLog", (req, res, next) => {
 
     let readStream;
     try {
-        readStream = fsR(fileName, {});
+        readStream = fsR(fileName, {'searchText':searchText, 'maxLineCount':lastEventNum});
   
     } catch (error) {
        return next(error);
@@ -43,18 +43,8 @@ app.post("/getLog", (req, res, next) => {
     let lineNum = 0;
     let sentOut = false;
     readStream.on('data', (line) => {
-        if (line) { // have this check to make sure empty lines are not parsed
-            if (!searchText || line.includes(searchText)) {
-
-                if (lineNum == lastEventNum) {
-                    readStream.emit('end');
-                } else {
-                    ++lineNum;
-                    res.write(line + '\n');
-                }
-
-            }
-        }
+        res.write(line + '\n');
+        ++lineNum;
     })
         .on('end', (err) => {
             if (err) {
