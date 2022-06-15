@@ -38,6 +38,10 @@ router.post('/getLog',/* isAuthorized,*/(req, res) => {
         res.status(200).end();
       }
     });
+  })
+  .catch((err) => {
+    res.write(err.toString());
+    res.status(500).end();
   });
 });
 module.exports = router;

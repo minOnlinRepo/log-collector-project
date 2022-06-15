@@ -22,3 +22,12 @@ Setup and run log-collect-service:
 	. run “npm install” if first time 
 	. run “npm start [port#]” or “node logCollect.js [port#]” to start log-collect-service. The parameter “[port#]” is optional and 3000 by default.
 
+
+Notes:
+Although the back-end returns all queried event lines in the response, in the front-end, it's currently limited to display up to 1000 lines on UI for rendering performance concern. It can be improved to dynamically display lines by user on-demand. 
+
+The file "myFsReverse.js" under log-collect-service provides a fs stream api to read a file in backwards. It is similar to fs-reverse except only using plain node fs without additional dependecies. The implementation uses fs-reverse for the reference.
+
+
+
+

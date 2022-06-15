@@ -20,7 +20,7 @@ app.post("/getLog", (req, res, next) => {
     let playload = req.body;
     const absoulteFilePath = path.resolve(path.normalize(playload.filePath));
 
-     if ( !absoulteFilePath.startsWith('/var/log/') ) {
+    if ( !absoulteFilePath.startsWith('/var/log/') ) {
         res.write('The specified file must be under the directory "/var/log/"');
         res.status(500).end();
         return;
@@ -32,7 +32,14 @@ app.post("/getLog", (req, res, next) => {
 
     console.log("--- /getLog request------" + fileName + ",  " + lastEventNum + ", " + searchText);
 
-    const readStream = fsR(fileName, {});
+    let readStream;
+    try {
+        readStream = fsR(fileName, {});
+  
+    } catch (error) {
+       return next(error);
+    }
+
     let lineNum = 0;
     let sentOut = false;
     readStream.on('data', (line) => {

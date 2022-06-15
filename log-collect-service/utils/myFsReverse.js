@@ -1,150 +1,135 @@
+/**
+ * This fs stream api is to read a file in backwards. It is similar to fs-reverse except 
+ * only using plain node fs without additional dependecies. This implementation uses fs-reverse
+ * for the reference.
+ * 
+ * Copyright (c) 2022 Min Hu 
+ * Copyright (c) 2011 Dominic Tarr 
+ * Permission is hereby granted, free of charge, 
+ * to any person obtaining a copy of this software and 
+ * associated documentation files (the "Software"), to 
+ * deal in the Software without restriction, including 
+ * without limitation the rights to use, copy, modify, 
+ * merge, publish, distribute, sublicense, and/or sell 
+ * copies of the Software, and to permit persons to whom 
+ * the Software is furnished to do so, 
+ * subject to the following conditions:
+**/
 let fs = require('fs');
 let Stream = require('stream');
 
 module.exports = function (file, opts) {
+  if (!fs.existsSync(file)) {
+    throw new Error("The file doesn't exist: " + file);
+  }
+
   let matcher = opts && opts.matcher || '\n';
   let bufferSize = opts && opts.bufferSize || 1024 * 64;
-  let mode = opts && opts.mode || 438 // 0666;
-  let flags = opts && opts.flags || 'r';
-
-  if(!/rx?/.test(flags)) throw new Error("only flags 'r' and 'rx' are allowed");
 
   let stream = new Stream();
   stream.ended = false;
   stream.started = false;
   stream.readable = true;
-  stream.writable = false;
-  stream.paused = false;
-  stream.ended = false;
-  stream.pause = function () {
-    stream.started = true;
-    stream.paused = true;
-  }; 
+  stream.reading = false;
 
-  let soFar = '';
-  let stat, fd, position;
+  let remaining = '';
+  let fd, position;
 
-  function onError (err) {
-    stream.emit('error', err);
-    stream.destroy();
-  }
-
-  let i = 0;
-  function next () {
-    stream.started = true;
-    if(stream.ended) return;
-    while(!stream.ended && !stream.paused && getChunk(i++, function () {
-      if(!stream.ended && !stream.paused)
-          process.nextTick(next);
-    }));
-  }
-
-  stream.resume = function () {
-    stream.started = true;
-    stream.paused = false;
-    next();
-  }
-  
   stream.on('end', function () {
     stream.ended = true;
     stream.readable = false;
     process.nextTick(stream.destroy);
+  }).on('close', function () {
+    if (fd && !stream.reading) {
+      fs.close(fd, () => { });
+    }
+  }).on('error', function () {
+    stream.reading = false;
   });
 
-
-  function getChunk(count, next) {
-    if(stream.destroyed) 
-      return;
-
-    if(count === 0) {
-      var c = 2;
-      fs.stat(file, function (err, _stat) {
-        if(err) return onError(err);
-        stat = _stat;
-        position = stat.size;
-        if(!--c) read();
-      });
-      fs.open(file, flags, mode, function (err, _fd) {
-        if(err) return onError(err);
-        fd = _fd;
-        stream.emit('open');
-        if(!--c) read();
-      })
-    } else {
-      read();
-    }
-
-    function read () {
-      if(stream.destroyed) {
-        return;
-      }
-
-      let length = Math.min(bufferSize, position);
-      let b = Buffer.alloc(length);
-      position = position - length;
-      fs.read(fd, b, 0, length, position, function (err) {
-        if(err) {
-          return onError(err);
-        }
-
-        parseBufferData(b);
-        if(position > 0) {
-          return next();
-        }
-        stream.emit('data', soFar);
-        stream.emit('end');
-        stream.destroy();
-      });
-    }
-
-    function parseBufferData(buffer) {
-      soFar = buffer + soFar;
-      let array = soFar.split(matcher);
-      soFar = array.shift();
-      while(array.length) {
-        if(stream.destroyed) {
-          return;
-        }
-        stream.emit('data', array.pop());
-      }
-    }
+  function onError(err) {
+    stream.emit('error', err);
+    stream.destroy();
   }
-  
-  stream.destroy = function () {
-    if(stream.destroyed) {
-      return;
-    }
 
+  stream.destroy = function () {
     stream.readable = false;
     stream.destroyed = true;
     stream.ended = true;
 
-    function close () {
-      fs.close(fd, function (err) {
-        if(err) {
-          onError(err);
-        }
-        stream.emit('close');
-      });
+    stream.emit('close');
+  }
+
+  // open the file 
+  function openFile() {
+    fs.open(file, 'r', 438, function (err, _fd) {
+      if (err) {
+        onError(err);
+        return;
+      }
+      stream.started = true;
+      fd = _fd;
+      getFileSize();
+    });
+  }
+
+  // state file to get total size
+  function getFileSize() {
+    fs.stat(file, function (err, stat) {
+      if (err) {
+        onError(err);
+        return;
+      }
+      position = stat.size;
+      loopReadFile();
+    })
+  }
+
+  function loopReadFile() {
+    if (stream.destroyed || stream.ended) {
+      return;
     }
 
-    if(!stream.started) {
-      return stream.emit('close'); //allow for destroy on first tick.
-    }
-    if(!fd) {
-      stream.once('open', close); //destroy before file opens.
-    }
-    else {
-      close();  
+    let length = Math.min(bufferSize, position);
+    let buf = Buffer.alloc(length);
+    position = position - length;
+    stream.reading = true;
+    fs.read(fd, buf, 0, length, position, function (err) {
+      stream.reading = false;
+
+      if (err) {
+        onError(err);
+        return;
+      }
+
+      parseBufferData(buf);
+      if (position > 0) {
+        if (!stream.ended && !stream.paused) {
+          process.nextTick(loopReadFile);
+        }
+        return;
+      }
+      if (remaining) {
+        stream.emit('data', remaining);
+      }
+      stream.emit('end');
+      stream.destroy();
+    });
+  }
+
+  function parseBufferData(buffer) {
+    let adjustedData = buffer + remaining;
+    let array = adjustedData.split(matcher);
+    remaining = array.shift();
+    while (array.length) {
+      if (stream.destroyed) {
+        return;
+      }
+      stream.emit('data', array.pop());
     }
   }
 
-  
-  process.nextTick(function () {
-    if(!stream.started) {
-      stream.resume();
-    }
-  });
+  process.nextTick(openFile);
 
   return stream;
 }
