@@ -1,9 +1,10 @@
+const express = require('express');
+const path = require('path');
+const logger = require('./logger');
+
 const myArgs = process.argv.slice(2);
 console.log('myArgs: ', myArgs);
 let port = myArgs[0] || 3000;
-
-let express = require('express');
-let path = require('path');
 
 let app = express();
 
@@ -15,8 +16,9 @@ let fsR = require('./utils/myFsReverse');
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(logger);
 
-app.post("/getLog", (req, res, next) => {
+app.post('/getLog', (req, res) => {
     let playload = req.body;
     const absoulteFilePath = path.resolve(path.normalize(playload.filePath));
 
@@ -35,9 +37,8 @@ app.post("/getLog", (req, res, next) => {
     let readStream;
     try {
         readStream = fsR(fileName, {'searchText':searchText, 'maxLineCount':lastEventNum});
-  
     } catch (error) {
-       return next(error);
+       return res.status(500).send(error);
     }
 
     let lineNum = 0;

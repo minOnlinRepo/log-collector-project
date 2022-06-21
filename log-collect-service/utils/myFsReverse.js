@@ -62,7 +62,7 @@ module.exports = function (file, opts) {
     stream.ended = true;
 
     stream.emit('close');
-  }
+  };
 
   // open the file 
   var startStream = function openFile(next) {
@@ -75,7 +75,7 @@ module.exports = function (file, opts) {
       fd = _fd;
       next.call();
     });
-  }
+  };
 
   // state file to get total size
   var getFileSize = function getFileSize() {
@@ -86,8 +86,8 @@ module.exports = function (file, opts) {
       }
       stream.position = stat.size;
       loopReadFile();
-    })
-  }
+    });
+  };
 
   function loopReadFile() {
     if (stream.destroyed || stream.ended) {
@@ -150,4 +150,4 @@ module.exports = function (file, opts) {
   process.nextTick(startStream, getFileSize);
 
   return stream;
-}
+};

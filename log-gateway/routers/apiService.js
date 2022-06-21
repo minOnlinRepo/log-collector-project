@@ -4,4 +4,4 @@ module.exports = (baseURL) => {
   return axios.create({
     baseURL: baseURL,
   });
-}
+};

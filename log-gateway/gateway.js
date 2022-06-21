@@ -3,6 +3,8 @@ let path = require('path');
 let router = require('./routers/router');
 let app = express();
 
+const port = process.env.PORT || 8080;
+
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 
@@ -12,6 +14,6 @@ app.get('/', (req, res) => {
 
 app.use(router);
 
-console.log("Simple API Gateway run on localhost:8080");
+console.log(`Simple API Gateway run on localhost:${port}...`);
 
-app.listen(8080);
+app.listen(port);

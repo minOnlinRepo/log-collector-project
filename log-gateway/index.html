@@ -61,11 +61,12 @@
     function getLogFile() {
         const contEdit = document.getElementById('container-edit');
         const cont = document.getElementById('container');
-
+       
         document.getElementById('input-server').value = document.getElementById('server').textContent;
         document.getElementById('input-logfile').value = document.getElementById('logfile').textContent;
         document.getElementById('input-lastEventNum').value = document.getElementById('lastEventNum').textContent;
         document.getElementById('input-searchText').value = document.getElementById('searchText').textContent;
+        document.getElementById('retrievedLogNum').innerHTML = 0;
 
         const logTable = document.getElementById('logMessageTbl');
         if (logTable) {
@@ -76,7 +77,45 @@
         contEdit.style.display = 'block';
     }
 
-    async function handleGetLogFileRequest() {
+    let totalRows = 0;
+    let MAX_DISPLAY_NUM = 5000;
+
+    const renderLogData = function processLogData(reader) {
+        const logNumDomElem = document.getElementById('retrievedLogNum');
+
+            reader.read().then(
+                ({ value, done }) => {
+                    if (done) {
+
+                        logNumDomElem.innerHTML = totalRows;
+                        console.log("The stream was already closed!  total rows = " + totalRows);
+
+                    } else {
+                        createLogMessageTable(value);
+                        logNumDomElem.innerHTML = totalRows;
+
+                       // Recursively call
+                       renderLogData(reader);
+                    }
+                },
+                e => console.error("The stream became errored and cannot be read from!", e)
+            );
+        };
+
+    async function fetchAndLogStream(payload) {
+        const response = await fetch(`http://${window.location.host}/api/logCollect/getLog`, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json',
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        const stream = response.body.pipeThrough(new TextDecoderStream());
+        renderLogData(stream.getReader());
+    }
+
+    function handleGetLogFileRequest() {
         const contEdit = document.getElementById('container-edit');
         const cont = document.getElementById('container');
         const loadingCont = document.getElementById('loadingContainer');
@@ -89,65 +128,48 @@
             searchText: document.getElementById('input-searchText').value
         };
 
-        let totalRows = 0;
-        await fetch(`http://${window.location.host}/getLog`, {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        })
-            .then(function (response) {
-                return response.text();
-            }).then(function (data) {
-                totalRows = createLogMessageTable(data);
-            });
-
-        /*const response = await fetch(`http://${window.location.host}/getLog`, {
-            method: 'POST',
-            headers: {
-                'Accept': 'application/json',
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-       
-        const jsonResponse = await response.json();
-        createLogMessageTable(jsonResponse);*/
+        totalRows = 0;
+        fetchAndLogStream(payload);
 
         document.getElementById('server').textContent = payload.serverName;
         document.getElementById('logfile').textContent = payload.logFilePath;
         document.getElementById('lastEventNum').textContent = payload.lastEventNum;
         document.getElementById('searchText').textContent = payload.searchText;
-        document.getElementById('retrievedLogNum').textContext = totalRows;
-        console.log("total #: " + totalRows);
         
         cont.style.display = 'block';
         contEdit.style.display = 'none';
         loadingCont.style.display = 'none';
     }
-
+ 
     function createLogMessageTable(data) {
-        let myTable = document.createElement('table');
-        myTable.setAttribute('id', 'logMessageTbl');
+        let myTable = document.getElementById('logMessageTbl');
+        if ( !myTable ) {
+            myTable = document.createElement('table');
+            myTable.setAttribute('id', 'logMessageTbl');
+            document.getElementById('logMessagecontainer').appendChild(myTable);
+        }
         let row, cell;
 
         let dataArray = data.split('\n');
         dataArray.splice(-1);
-        dataArray.slice(0, 1000).forEach((value, i) => {
-            row = myTable.insertRow();
+        if ( totalRows < MAX_DISPLAY_NUM ) {
+            dataArray.slice().forEach((value, i) => {
+                let rowNum = i + 1 + totalRows;
+                if ( rowNum > MAX_DISPLAY_NUM ) 
+                    return;
 
-            cell = row.insertCell();
-            cell.innerHTML = i + 1;
+                row = myTable.insertRow();
 
-            cell = row.insertCell();
-            cell.innerHTML = value;
-        });
+                cell = row.insertCell();
+                cell.innerHTML = rowNum;
 
-        document.getElementById('logMessagecontainer').appendChild(myTable);
+                cell = row.insertCell();
+                cell.innerHTML = value;
+                
+            });
+        }
 
-        return dataArray.length;
+        totalRows += dataArray.length;
     }
 </script>
 
@@ -189,7 +211,7 @@
             <h1>Loading ...</h1>
         </div>
         <span>Event Messages: </span>
-        <h3 id='retrievedLogNum'> </h3>
+        <h3 id='retrievedLogNum'>0</h3>
         <hr />
     </div>
 </body>

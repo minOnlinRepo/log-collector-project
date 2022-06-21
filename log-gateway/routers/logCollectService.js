@@ -1,17 +1,13 @@
 let express = require('express');
 let router = express.Router();
 const apiService = require('./apiService');
-//const isAuthorized = require('../auth/requestAuthenticator');
 
-
-
-router.post('/getLog',/* isAuthorized,*/(req, res) => {
+router.post('/getLog', (req, res) => {
   let playload = req.body;
   let serverName = playload.serverName;
 
   if ( !playload.logFilePath.startsWith('/var/log/') ) {
-    res.status(500).send('The specified file must be under the directory "/var/log/"');
-    return;
+    return res.status(500).send('The specified file must be under the directory "/var/log/"');
   }
 
   const postLoad = {
@@ -24,7 +20,6 @@ router.post('/getLog',/* isAuthorized,*/(req, res) => {
 
   const BASE_URL = 'http://' + serverName;
   const api = apiService(BASE_URL);
-
   api.post(req.path, postLoad, { responseType: 'stream' }).then(response => {
     const stream = response.data;
     stream.on('data', (line) => {

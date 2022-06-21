@@ -1,14 +1,11 @@
 let express = require('express');
-let router = express.Router()
-let logCollectRouter = require('./logCollectService')
-//let authRouter = require('../auth/AuthController')
+let router = express.Router();
+let logCollectRouter = require('./logCollectService');
+const logger = require('./logger');
+const authRouter = require('./authorize');
 
-router.use((req, res, next) => {
-    console.log("Called: ", req.path)
-    next()
-})
+router.use([logger, authRouter]);
 
-router.use(logCollectRouter)
-//router.use(authRouter)
+router.use('/api/logCollect', logCollectRouter);
 
-module.exports = router
+module.exports = router;
